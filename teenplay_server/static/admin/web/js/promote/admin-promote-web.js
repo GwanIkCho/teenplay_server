@@ -1,6 +1,8 @@
 let page = 1
 let keyword = ""
 let type = ""
+let allCheck = false
+let totalCountNumber = 0
 
 const CreateService = (() => {
     const showList = (pagination) => {
@@ -132,6 +134,7 @@ const CreateService = (() => {
     const CountText = (pagination) => {
         let text = ``;
         text += pagination.total
+        totalCountNumber = text;
 
         return text;
     }
@@ -167,12 +170,13 @@ allShowPaging();
 const totalCount = document.getElementById("total-count");
 
 // 공지사항 개수 표기
-function CountShowText() {
-    adminPromoteService.getPagination(page, type, keyword, CreateService.CountText).then((text) => {
+const CountShowText = async () => {
+    await adminPromoteService.getPagination(page, type, keyword, CreateService.CountText).then((text) => {
         totalCount.textContent = text;
     })
 }
 CountShowText();
+
 
 
 
@@ -242,7 +246,7 @@ mainUserBottomUl.addEventListener("click", (e) => {
 // 체크박스
 const modalDeleteOpenButtons = document.querySelectorAll(".member-user-list-button");
 // 전체 선택 버튼
-const statusName = document.querySelector(".main-user-status-name");
+const statusName = document.querySelector(".main-user-status-checkbox");
 // 전체 텍스트
 const statusNameText = document.querySelector(".main-user-total-text")
 
@@ -271,6 +275,45 @@ promoteData.addEventListener('click', (e) => {
     })
 })
 
+statusName.addEventListener('click', () => {
+    let checkboxes = document.querySelectorAll(".main-comment-list-checkbox");
+    // 선택된 모든 체크박스 개수를 구합니다.
+    const checkedCount = checkboxes.length;
+
+    if (allCheck) {
+        allCheck = false;
+        statusNameText.textContent = '전체';
+        totalCount.textContent = totalCountNumber
+    } else {
+        allCheck = true;
+        statusNameText.textContent = '전체 중';
+        // 선택된 모든 체크박스 개수를 텍스트로 표시합니다.
+        totalCount.textContent = checkedCount;
+    }
+
+    checkboxes.forEach((checkbox) => {
+        checkbox.checked = allCheck
+    });
+
+    checkboxes = document.querySelectorAll(".main-comment-list-checkbox:checked");
+
+    if (checkboxes.length > 0) {
+        // 이부분이 안됩니다
+        modalDeleteOpenButtons.forEach((deleteButton) => {
+            console.log("if 들어옴")
+            deleteButton.classList.remove("disabled");
+
+        });
+    } else{
+        // 모달 삭제 버튼 활성화 여부를 업데이트합니다.
+        modalDeleteOpenButtons.forEach((deleteButton) => {
+            console.log("else 들어옴")
+            deleteButton.classList.add("disabled");
+        });
+    }
+
+
+});
 
 
 
