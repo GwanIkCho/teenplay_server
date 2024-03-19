@@ -66,7 +66,6 @@ class MemberJoinWebView(View):
 from django.http import HttpResponse
 
 
-# 자체작업 합의 후 push해야합니다.
 class MypageInfoWebView(View):
     def get(self, request):
         member_id = request.session.get('member')
