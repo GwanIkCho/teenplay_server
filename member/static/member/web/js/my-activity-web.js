@@ -125,9 +125,10 @@ function unlikeModalOn(activityDiv) {
 
 
 
-
+// list뽑아주는 자료 나옵니다.
 const showList = async (activity_data) =>{
     let text='';
+    // 자료가 없다면 없다고 떠야합니다.
     if (activity_data.length ===0){
         text += `<div class="signal-none">아직 새로운 활동이 없습니다.</div>`
     }
@@ -140,7 +141,7 @@ const showList = async (activity_data) =>{
         activityEndDate.setHours(0, 0, 0, 0);
         currentDate.setHours(0, 0, 0, 0);
         // activityEndDate >= currentDate 이게 아직 안한거임
-        // 끝난거
+        // 활도이 끝난거 + 사진이 있고 없고 판단.
         if (activityEndDate < currentDate && activity_data.thumbnail_path === ""){
         text += `<div class="activity-wrap">
                     <div class="activity-box">
@@ -289,7 +290,7 @@ const showList = async (activity_data) =>{
                     </div>
                   </div>`
             }
-        // 참여자 + status(1) 참여확정
+        // 참여자 + status(1) 참여확정 + 사진 유무 확인
         else if (activityEndDate >= currentDate && activity_data.activitymember__status ===1 && activity_data.thumbnail_path ===''){
             text +=
                 `<div class="activity-wrap">
@@ -720,7 +721,7 @@ const showList = async (activity_data) =>{
                 </div>
               </div>`
         }
-        // 좋아요 누른거
+        // 좋아요 누른거 + 필터에 좋아요 누른 사진만 나오게 하는게 있으니 좋아요 유무 확인
         else if (activity_data.status === true && activity_data.activity__thumbnail_path===''){
             console.log(activity_data)
             text += `<div class="activity-wrap">
@@ -870,6 +871,8 @@ const showList = async (activity_data) =>{
 return text;}
 
 
+
+// 화면에서 좋아요 눌린상태인지 아닌지 확인 후 하트 채우기, 빼기
 const changeLike = async ()=>{
     const conditions = document.querySelectorAll(".unlike-img-container")
     const on = document.querySelectorAll(".like-on")
@@ -886,7 +889,7 @@ const changeLike = async ()=>{
 
 
 
-
+// 실시간으로 서버와 연동해서 좋아요 status 바꿔주기
 inner.addEventListener("click", async(e)=> {
     if(e.target.classList[0] === 'unlike-img-container'){
         const likly = e.target.classList[1]
@@ -959,7 +962,7 @@ activityService.getList(member_id, page,status_like, showList);
 
 
 
-
+// 시간을 나타내기 위한 모듈
 const changeDate = (dateStr) => {
     const days = ['일', '월', '화', '수', '목', '금', '토'];
     const date = new Date(dateStr); // string타입을 date타입으로 바꿈.
