@@ -4,6 +4,7 @@ from django.shortcuts import redirect
 def pre_handle_request(get_response):
     def middleware(request):
         # 사용자가 요청한 경로
+        setattr(request, '_dont_enforce_csrf_checks', True)
         uri = request.get_full_path()
 
         if 'accounts' not in uri and 'oauth' not in uri and 'api' not in uri and 'static' not in uri\
