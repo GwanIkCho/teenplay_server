@@ -29,16 +29,16 @@ class MemberLoginWebView(View):
 
 
 class MemberJoinWebView(View):
-    def get(self, request):
-        member_type = request.GET['type']
-        member_email = request.GET['email']
-        member_nickname = request.GET['name']
-        context = {
-            'member_type': member_type,
-            'member_email': member_email,
-            'member_nickname': member_nickname
-        }
-        return render(request, 'member/web/join-web.html', context=context)
+    # def get(self, request):
+    #     member_type = request.GET['type']
+    #     member_email = request.GET['email']
+    #     member_nickname = request.GET['name']
+    #     context = {
+    #         'member_type': member_type,
+    #         'member_email': member_email,
+    #         'member_nickname': member_nickname
+    #     }
+    #     return render(request, 'member/web/join-web.html', context=context)
 
     @transaction.atomic
     def post(self, request):
