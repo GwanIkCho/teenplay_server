@@ -68,10 +68,14 @@ from django.http import HttpResponse
 
 class MypageInfoWebView(View):
     def get(self, request):
+        # 개인의 정보를 나타내야 하기때문에 세션에 담아줍니다.
         member_id = request.session.get('member')
         if member_id is None:
+            #  멤버정보가 없다는 뜻은 로그인을 안했다는 뜻으로 로그인부터 시켜줍니다.
             return redirect('member:login')
+        #  정상적으로 로그인하고 접속했을땨의 공간입니다.
         else:
+            #
             member = request.session.get('member')
             member_file = MemberProfile.objects.filter(member_id=member['id'])
             member_files = list(member_file.values('profile_path').filter(status=1))
