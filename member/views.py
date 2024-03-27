@@ -1067,7 +1067,6 @@ class MypagePayDeleteAPIVIEW(APIView):
 
         PayCancel.objects.create(pay_cancel_reason=reason)
 
-
         return Response('good')
 
 
