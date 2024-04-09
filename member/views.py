@@ -1065,6 +1065,7 @@ class MypagePayDeleteAPIVIEW(APIView):
                                    cancel_price=pay.price,
                                    cancel_username='관리자', cancel_message='취소됨')
 
+
         PayCancel.objects.create(pay_cancel_reason=reason)
         return Response('good')
 
