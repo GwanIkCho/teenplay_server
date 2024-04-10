@@ -1070,6 +1070,7 @@ class MypagePayDeleteAPIVIEW(APIView):
         return Response('good')
 
 
+
 class MypageReplyView(View):
     def get(self, request):
         # 단순 페이지 이동
