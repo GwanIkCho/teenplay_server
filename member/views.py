@@ -377,6 +377,7 @@ class MypageCheckAPIWebViewMa(APIView):
         return Response(data)
 
 
+
 class MypageAlramView(View):
     @transaction.atomic
     def get(self, request):
