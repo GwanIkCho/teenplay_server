@@ -134,23 +134,6 @@ WSGI_APPLICATION = 'teenplay_server.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         # DBMS 모듈 경로
-#         'ENGINE': 'django.db.backends.mysql',
-#         # DATABASE 이름
-#         'NAME': 'teenplay',
-#         # 계정 이름
-#         'USER': 'mysql',
-#         # 계정 비밀번호
-#         'PASSWORD': '1234',
-#         # DBMS가 설치된 서버 PC의 IP, (127.0.0.1 = 로컬)
-#         'HOST': '13.125.213.142',
-#         # DBMS의 포트번호
-#         'PORT': '3306'
-#     }
-# }
-
 DATABASES = {
     'default': {
         # DBMS 모듈 경로
@@ -158,15 +141,32 @@ DATABASES = {
         # DATABASE 이름
         'NAME': 'teenplay',
         # 계정 이름
-        'USER': 'project',
+        'USER': 'mysql',
         # 계정 비밀번호
         'PASSWORD': '1234',
         # DBMS가 설치된 서버 PC의 IP, (127.0.0.1 = 로컬)
-        'HOST': '43.201.64.40',
+        'HOST': '13.125.213.142',
         # DBMS의 포트번호
         'PORT': '3306'
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         # DBMS 모듈 경로
+#         'ENGINE': 'django.db.backends.mysql',
+#         # DATABASE 이름
+#         'NAME': 'teenplay',
+#         # 계정 이름
+#         'USER': 'project',
+#         # 계정 비밀번호
+#         'PASSWORD': '1234',
+#         # DBMS가 설치된 서버 PC의 IP, (127.0.0.1 = 로컬)
+#         'HOST': '43.201.64.40',
+#         # DBMS의 포트번호
+#         'PORT': '3306'
+#     }
+# }
 
 
 # Password validation
