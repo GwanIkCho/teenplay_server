@@ -28,7 +28,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-ae#4x$6v8%w$ltg(5hdq43$*=+1_v@451gj$2j&t++x9#9o01h'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ['3.35.240.254', 'teenplay.info', '127.0.0.1', 'localhost']
 
@@ -74,7 +74,11 @@ CRONJOBS = [
     ('0 0 * * *', 'activity.tasks.DeleteOldImages')
 ]
 
-SITE_ID = 2
+# 내 서버
+SITE_ID = 10
+# 현이 서버
+# SITE_ID = 2
+
 
 SOCIALACCOUNT_AUTO_SIGNUP = True
 ACCOUNT_EMAIL_REQUIRED = True
@@ -130,6 +134,23 @@ WSGI_APPLICATION = 'teenplay_server.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         # DBMS 모듈 경로
+#         'ENGINE': 'django.db.backends.mysql',
+#         # DATABASE 이름
+#         'NAME': 'teenplay',
+#         # 계정 이름
+#         'USER': 'mysql',
+#         # 계정 비밀번호
+#         'PASSWORD': '1234',
+#         # DBMS가 설치된 서버 PC의 IP, (127.0.0.1 = 로컬)
+#         'HOST': '13.125.213.142',
+#         # DBMS의 포트번호
+#         'PORT': '3306'
+#     }
+# }
+
 DATABASES = {
     'default': {
         # DBMS 모듈 경로
@@ -137,16 +158,15 @@ DATABASES = {
         # DATABASE 이름
         'NAME': 'teenplay',
         # 계정 이름
-        'USER': 'mysql',
+        'USER': 'project',
         # 계정 비밀번호
         'PASSWORD': '1234',
         # DBMS가 설치된 서버 PC의 IP, (127.0.0.1 = 로컬)
-        'HOST': '13.125.213.142',
+        'HOST': '43.201.64.40',
         # DBMS의 포트번호
         'PORT': '3306'
     }
 }
-
 
 
 # Password validation
