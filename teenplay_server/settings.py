@@ -73,7 +73,7 @@ CRONJOBS = [
     ('0 0 * * *', 'activity.tasks.DeleteOldImages')
 ]
 
-SITE_ID = 10
+SITE_ID = 2
 
 SOCIALACCOUNT_AUTO_SIGNUP = True
 ACCOUNT_EMAIL_REQUIRED = True
@@ -136,11 +136,11 @@ DATABASES = {
         # DATABASE 이름
         'NAME': 'teenplay',
         # 계정 이름
-        'USER': 'project',
+        'USER': 'mysql',
         # 계정 비밀번호
         'PASSWORD': '1234',
         # DBMS가 설치된 서버 PC의 IP, (127.0.0.1 = 로컬)
-        'HOST': '43.201.64.40',
+        'HOST': '13.125.213.142',
         # DBMS의 포트번호
         'PORT': '3306'
     }
