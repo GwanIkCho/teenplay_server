@@ -489,37 +489,49 @@ class MemberAlarmCountAPI(APIView):
 
 
 #############################################
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from django.db.models import Q
 
 class MypageTeenchinAPIview(APIView):
     def get_unmatched_senders(self, member_id):
         results = member_id_target().member_id_target(member_id)
-        unmatched_senders = [sender_id for sender_id in results if not (
-            Friend.objects.filter(sender_id=sender_id, receiver_id=member_id).exists() or
-            Friend.objects.filter(sender_id=member_id, receiver_id=sender_id).exists()
-        )]
+        friends_filter = Q(sender_id__in=results, receiver_id=member_id) | Q(sender_id=member_id,
+                                                                             receiver_id__in=results)
+        friends = Friend.objects.filter(friends_filter).values_list('sender_id', 'receiver_id')
+        friend_ids = set(friend['sender_id'] for friend in friends).union(
+            set(friend['receiver_id'] for friend in friends))
+        unmatched_senders = [sender_id for sender_id in results if sender_id not in friend_ids]
         return unmatched_senders
 
     def get_teenchin_add(self, unmatched_senders):
         return list(Member.objects.filter(id__in=unmatched_senders).values('id', 'member_nickname'))
 
     def get_teenchin(self, member_id, is_friend, search_text=''):
-        filters = (Q(sender_id=member_id, is_friend=is_friend) | Q(receiver_id=member_id, is_friend=is_friend))
+        filters = (Q(sender_id=member_id) | Q(receiver_id=member_id)) & Q(is_friend=is_friend)
         if search_text:
-            filters &= (Q(receiver__member_nickname__icontains=search_text) | Q(receiver__member_email__icontains=search_text) |
-                        Q(sender__member_email__icontains=search_text) | Q(sender__member_nickname__icontains=search_text))
+            search_filter = Q(receiver__member_nickname__icontains=search_text) | Q(
+                receiver__member_email__icontains=search_text) | Q(sender__member_email__icontains=search_text) | Q(
+                sender__member_nickname__icontains=search_text)
+            filters &= search_filter
+
         teenchin = list(Friend.objects.filter(filters).values(
             'id', 'is_friend', 'sender_id', 'receiver_id',
             'sender__member_nickname', 'receiver__member_nickname',
             'sender__memberprofile__profile_path', 'receiver__memberprofile__profile_path'
         ))
 
+        receiver_ids = [item['receiver_id'] if item['receiver_id'] != member_id else item['sender_id'] for item in
+                        teenchin]
+        activity_counts = {m['member_id']: m['count'] for m in
+                           ActivityMember.objects.filter(status=1, member_id__in=receiver_ids).values(
+                               'member_id').annotate(count=Count('id'))}
+        club_counts = {m['member_id']: m['count'] for m in
+                       ClubMember.objects.filter(status=1, member_id__in=receiver_ids).values('member_id').annotate(
+                           count=Count('id'))}
+
         for item in teenchin:
             receiver_id = item['receiver_id'] if item['receiver_id'] != member_id else item['sender_id']
-            item['aactivity_count'] = ActivityMember.objects.filter(status=1, member_id=receiver_id).count()
-            item['club_count'] = ClubMember.objects.filter(status=1, member_id=receiver_id).count()
+            item['aactivity_count'] = activity_counts.get(receiver_id, 0)
+            item['club_count'] = club_counts.get(receiver_id, 0)
+
         return teenchin
 
     def get(self, request, member_id, page):
@@ -546,8 +558,6 @@ class MypageTeenchinAPIview(APIView):
         }
 
         return Response(response_data)
-
-
 
 
 class MypageTeenchindeleteview(APIView):
