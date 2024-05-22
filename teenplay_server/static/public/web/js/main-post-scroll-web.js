@@ -1,6 +1,6 @@
 //
 
-const addScrollEventToPostLists = () => {
+const postScrollAdd = () => {
     const postLists = document.querySelectorAll(".post-list");
 
     postLists.forEach((postList) => {
@@ -88,4 +88,3 @@ const addScrollEventToPostLists = () => {
         bindEvents();
     });
 }
-

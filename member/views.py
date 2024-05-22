@@ -25,9 +25,7 @@ from pay.models import Pay, PayCancel
 from teenplay_server.category import Category
 from teenplay_server.models import Region
 from wishlist.models import WishlistReply, Wishlist
-
 import pandas as pd
-
 
 def get_member_wishlist_data():
     with connection.cursor() as cursor:
@@ -69,6 +67,8 @@ class member_id_target():
             target_member.append(get_title_from_index(movie[0]))
 
         return target_member
+
+
 class MemberLoginWebView(View):
     # 로그인 페이지로 이동하는 view입니다.
     def get(self, request):
@@ -474,17 +474,6 @@ class MypageTeenchinview(View):
         return render(request, 'mypage/web/my-teenchin-web.html')
 
 
-class MypageTeenchinAPIview(APIView):
-    def get(self, request, member_id, page):
-        row_count = 2
-        offset = (page - 1) * row_count
-        limit = page * row_count
-
-        teenchin = Friend.objects.filter(receiver_id=member_id).values('id', 'is_friend')[offset:limit]
-
-        return Response(teenchin)
-
-
 ############################################
 class MemberAlarmCountAPI(APIView):
     # 로그인한 상태에서 헤더에 알람 개수를 띄우기 위한 요청에 응답하는 REST API 입니다.
@@ -500,624 +489,66 @@ class MemberAlarmCountAPI(APIView):
 
 
 #############################################
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.db.models import Q
+
 class MypageTeenchinAPIview(APIView):
+    def get_unmatched_senders(self, member_id):
+        results = member_id_target().member_id_target(member_id)
+        unmatched_senders = [sender_id for sender_id in results if not (
+            Friend.objects.filter(sender_id=sender_id, receiver_id=member_id).exists() or
+            Friend.objects.filter(sender_id=member_id, receiver_id=sender_id).exists()
+        )]
+        return unmatched_senders
+
+    def get_teenchin_add(self, unmatched_senders):
+        return list(Member.objects.filter(id__in=unmatched_senders).values('id', 'member_nickname'))
+
+    def get_teenchin(self, member_id, is_friend, search_text=''):
+        filters = (Q(sender_id=member_id, is_friend=is_friend) | Q(receiver_id=member_id, is_friend=is_friend))
+        if search_text:
+            filters &= (Q(receiver__member_nickname__icontains=search_text) | Q(receiver__member_email__icontains=search_text) |
+                        Q(sender__member_email__icontains=search_text) | Q(sender__member_nickname__icontains=search_text))
+        teenchin = list(Friend.objects.filter(filters).values(
+            'id', 'is_friend', 'sender_id', 'receiver_id',
+            'sender__member_nickname', 'receiver__member_nickname',
+            'sender__memberprofile__profile_path', 'receiver__memberprofile__profile_path'
+        ))
+
+        for item in teenchin:
+            receiver_id = item['receiver_id'] if item['receiver_id'] != member_id else item['sender_id']
+            item['aactivity_count'] = ActivityMember.objects.filter(status=1, member_id=receiver_id).count()
+            item['club_count'] = ClubMember.objects.filter(status=1, member_id=receiver_id).count()
+        return teenchin
+
     def get(self, request, member_id, page):
-        # 검색, 필터기능 구현을 위한 데이터 받아오기
         member_id = request.session.get('member').get('id')
         status_letter = request.GET.get('status_teenchin')
-        search_text = request.GET.get('search')[:-1]
-        # 페이지에 나타내는 데이터 숫자 선택
+        search_text = request.GET.get('search', '')[:-1]
         row_count = 9
-        # 데이터가 페이지별로 몇번부터 몇번 데이터까지인지 나타내준다.
         offset = (page - 1) * row_count
         limit = page * row_count
 
-        unmatched_senders = []
-        teenchin_add = []
-        target_instance = member_id_target()
-        # # 메서드 호출
-        results = target_instance.member_id_target(member_id)
+        unmatched_senders = self.get_unmatched_senders(member_id)
+        teenchin_add = self.get_teenchin_add(unmatched_senders)
 
-        for sender_id in results:
-            # sender_id가 특정 member_id를 receiver_id로 가지고 있는지 확인합니다.
-            exists_condition1 = Friend.objects.filter(sender_id=sender_id, receiver_id=member_id).exists()
-            exists_condition2 = Friend.objects.filter(sender_id=member_id, receiver_id=sender_id).exists()
-
-            # 두 개의 조건 중 하나라도 충족되지 않으면, sender_id를 unmatched_senders에 추가합니다.
-            if not (exists_condition1 or exists_condition2):
-                unmatched_senders.append(sender_id)
-
-        for i in unmatched_senders:
-            target_members = Member.objects.filter(id=i).values('id', 'member_nickname')  # 필요한 필드를 선택하여 가져옵니다.
-            teenchin_add += list(target_members)
-
-        # 중복을 막기위해 조건별로 구분 후 담아줍니다.
-        teenchin = []
-        teenchin += Friend.objects.filter(sender_id=member_id, is_friend=1).values('id', 'is_friend', 'sender_id',
-                                                                                   'receiver_id',
-                                                                                   'sender__member_nickname',
-                                                                                   'receiver__member_nickname',
-                                                                                   'receiver__memberprofile__profile_path', )
-
-        teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=1).values('id', 'is_friend', 'sender_id',
-                                                                                     'receiver_id',
-                                                                                     'sender__member_nickname',
-                                                                                     'receiver__member_nickname',
-                                                                                     'sender__memberprofile__profile_path')
-        teenchin += Friend.objects.filter(sender_id=member_id, is_friend=-1).values('id', 'is_friend', 'sender_id',
-                                                                                    'receiver_id',
-                                                                                    'sender__member_nickname',
-                                                                                    'receiver__member_nickname',
-                                                                                    'receiver__memberprofile__profile_path')
-
-        teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=-1).values('id', 'is_friend', 'sender_id',
-                                                                                      'receiver_id',
-                                                                                      'sender__member_nickname',
-                                                                                      'receiver__member_nickname',
-                                                                                      'sender__memberprofile__profile_path')
+        if status_letter == 'case-a/':
+            teenchin = self.get_teenchin(member_id, 1, search_text)
+        elif status_letter in ['case-b/', 'case-c/']:
+            teenchin = self.get_teenchin(member_id, -1, search_text)
+        else:
+            teenchin = self.get_teenchin(member_id, 1, search_text) + self.get_teenchin(member_id, -1, search_text)
 
         response_data = {
             'teenchin': teenchin[offset:limit],
-            'teenchin_add': teenchin_add[0:9]
+            'teenchin_add': teenchin_add[:9]
         }
-        # 필터를 통해 특정 상태의 틴친만 보여줍니다.
-        if status_letter == 'case-a/':
-            teenchin = []
-            unmatched_senders = []
-            teenchin_add = []
-            target_instance = member_id_target()
-            # # 메서드 호출
-            results = target_instance.member_id_target(member_id)
-
-            for sender_id in results:
-                # sender_id가 특정 member_id를 receiver_id로 가지고 있는지 확인합니다.
-                exists_condition1 = Friend.objects.filter(sender_id=sender_id, receiver_id=member_id).exists()
-                exists_condition2 = Friend.objects.filter(sender_id=member_id, receiver_id=sender_id).exists()
-
-                # 두 개의 조건 중 하나라도 충족되지 않으면, sender_id를 unmatched_senders에 추가합니다.
-                if not (exists_condition1 or exists_condition2):
-                    unmatched_senders.append(sender_id)
-
-            for i in unmatched_senders:
-                target_members = Member.objects.filter(id=i).values('id', 'member_nickname')  # 필요한 필드를 선택하여 가져옵니다.
-                teenchin_add += list(target_members)
-            teenchin += Friend.objects.filter(sender_id=member_id, is_friend=1).values('id', 'is_friend', 'sender_id',
-                                                                                       'receiver_id',
-                                                                                       'sender__member_nickname',
-                                                                                       'receiver__member_nickname',
-                                                                                       'receiver__memberprofile__profile_path', )
-
-            # 각각의 틴친의 활동 가입수를 보여줍니다
-            for aactivity_count in teenchin:
-                receiver_id = aactivity_count.get('receiver_id')
-                manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                aactivity_count['aactivity_count'] = manager_favorite_categories_add
-            # 각각의 틴친의 모임 가입수를 보여줍니다.
-            for club_count in teenchin:
-                receiver_id = club_count.get('receiver_id')
-                manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                            member_id=receiver_id).values().count()
-                club_count['club_count'] = manager_favorite_categories_add
-
-            teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=1).values('id', 'is_friend', 'sender_id',
-                                                                                         'receiver_id',
-                                                                                         'sender__member_nickname',
-                                                                                         'receiver__member_nickname',
-                                                                                         'sender__memberprofile__profile_path')
-            # 검색을 한다면 그 검색내용을 걸러서 보여줍니다. (이메일, 이름 모두가능)
-            if search_text:
-                teenchin = []
-                teenchin += Friend.objects.filter(sender_id=member_id, is_friend=1,
-                                                  receiver__member_nickname__icontains=search_text).values('id',
-                                                                                                           'is_friend',
-                                                                                                           'sender_id',
-                                                                                                           'receiver_id',
-                                                                                                           'sender__member_nickname',
-                                                                                                           'receiver__member_nickname',
-                                                                                                           'receiver__memberprofile__profile_path', )
-
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    receiver_id = aactivity_count.get('receiver_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=receiver_id).values().count()
-                    aactivity_count['aactivity_count'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    receiver_id = club_count.get('receiver_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                    club_count['club_count'] = manager_favorite_categories_add
-
-                teenchin += Friend.objects.filter(sender_id=member_id, is_friend=1,
-                                                  receiver__member_email__icontains=search_text).values('id',
-                                                                                                        'is_friend',
-                                                                                                        'sender_id',
-                                                                                                        'receiver_id',
-                                                                                                        'sender__member_nickname',
-                                                                                                        'receiver__member_nickname',
-                                                                                                        'receiver__memberprofile__profile_path', )
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    receiver_id = aactivity_count.get('receiver_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=receiver_id).values().count()
-                    aactivity_count['aactivity_count'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    receiver_id = club_count.get('receiver_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                    club_count['club_count'] = manager_favorite_categories_add
-
-                teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=1,
-                                                  sender__member_email__icontains=search_text).values('id', 'is_friend',
-                                                                                                      'sender_id',
-                                                                                                      'receiver_id',
-                                                                                                      'sender__member_nickname',
-                                                                                                      'receiver__member_nickname',
-                                                                                                      'sender__memberprofile__profile_path')
-                teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=1,
-                                                  sender__member_nickname__icontains=search_text).values('id',
-                                                                                                         'is_friend',
-                                                                                                         'sender_id',
-                                                                                                         'receiver_id',
-                                                                                                         'sender__member_nickname',
-                                                                                                         'receiver__member_nickname',
-                                                                                                         'sender__memberprofile__profile_path')
-            response_data = {
-                'teenchin': teenchin[offset:limit],
-                'teenchin_add': teenchin_add[0:9]
-            }
-
-        # 필터를 통해 특정 상태의 틴친만 보여줍니다.
-        elif status_letter == 'case-b/':
-            teenchin = []
-            unmatched_senders = []
-            teenchin_add = []
-            target_instance = member_id_target()
-            # # 메서드 호출
-            results = target_instance.member_id_target(member_id)
-
-            for sender_id in results:
-                # sender_id가 특정 member_id를 receiver_id로 가지고 있는지 확인합니다.
-                exists_condition1 = Friend.objects.filter(sender_id=sender_id, receiver_id=member_id).exists()
-                exists_condition2 = Friend.objects.filter(sender_id=member_id, receiver_id=sender_id).exists()
-
-                # 두 개의 조건 중 하나라도 충족되지 않으면, sender_id를 unmatched_senders에 추가합니다.
-                if not (exists_condition1 or exists_condition2):
-                    unmatched_senders.append(sender_id)
-
-            for i in unmatched_senders:
-                target_members = Member.objects.filter(id=i).values('id', 'member_nickname')  # 필요한 필드를 선택하여 가져옵니다.
-                teenchin_add += list(target_members)
-            teenchin += Friend.objects.filter(sender_id=member_id, is_friend=-1).values('id', 'is_friend', 'sender_id',
-                                                                                        'receiver_id',
-                                                                                        'sender__member_nickname',
-                                                                                        'receiver__member_nickname',
-                                                                                        'receiver__memberprofile__profile_path')
-            # 각각의 틴친의 활동 가입수를 보여줍니다
-            for aactivity_count in teenchin:
-                receiver_id = aactivity_count.get('receiver_id')
-                manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                aactivity_count['aactivity_count'] = manager_favorite_categories_add
-            # 각각의 틴친의 모임 가입수를 보여줍니다.
-            for club_count in teenchin:
-                receiver_id = club_count.get('receiver_id')
-                manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                            member_id=receiver_id).values().count()
-                club_count['club_count'] = manager_favorite_categories_add
-
-            # 검색을 한다면 그 검색내용을 걸러서 보여줍니다. (이메일, 이름 모두가능)
-            if search_text:
-                teenchin = []
-                teenchin += Friend.objects.filter(sender_id=member_id, is_friend=-1,
-                                                  receiver__member_nickname__icontains=search_text).values('id',
-                                                                                                           'is_friend',
-                                                                                                           'sender_id',
-                                                                                                           'receiver_id',
-                                                                                                           'sender__member_nickname',
-                                                                                                           'receiver__member_nickname',
-                                                                                                           'receiver__memberprofile__profile_path')
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    receiver_id = aactivity_count.get('receiver_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=receiver_id).values().count()
-                    aactivity_count['aactivity_count'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    receiver_id = club_count.get('receiver_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                    club_count['club_count'] = manager_favorite_categories_add
-
-                teenchin += Friend.objects.filter(sender_id=member_id, is_friend=-1,
-                                                  receiver__member_email__icontains=search_text).values('id',
-                                                                                                        'is_friend',
-                                                                                                        'sender_id',
-                                                                                                        'receiver_id',
-                                                                                                        'sender__member_nickname',
-                                                                                                        'receiver__member_nickname',
-                                                                                                        'receiver__memberprofile__profile_path')
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    receiver_id = aactivity_count.get('receiver_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=receiver_id).values().count()
-                    aactivity_count['aactivity_count'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    receiver_id = club_count.get('receiver_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                    club_count['club_count'] = manager_favorite_categories_add
-
-            response_data = {
-                'teenchin': teenchin[offset:limit],
-                'teenchin_add': teenchin_add[0:9]
-            }
-
-        # 필터를 통해 특정 상태의 틴친만 보여줍니다.
-        elif status_letter == 'case-c/':
-            teenchin = []
-            unmatched_senders = []
-            teenchin_add = []
-            target_instance = member_id_target()
-            # # 메서드 호출
-            results = target_instance.member_id_target(member_id)
-
-            for sender_id in results:
-                # sender_id가 특정 member_id를 receiver_id로 가지고 있는지 확인합니다.
-                exists_condition1 = Friend.objects.filter(sender_id=sender_id, receiver_id=member_id).exists()
-                exists_condition2 = Friend.objects.filter(sender_id=member_id, receiver_id=sender_id).exists()
-
-                # 두 개의 조건 중 하나라도 충족되지 않으면, sender_id를 unmatched_senders에 추가합니다.
-                if not (exists_condition1 or exists_condition2):
-                    unmatched_senders.append(sender_id)
-
-            for i in unmatched_senders:
-                target_members = Member.objects.filter(id=i).values('id', 'member_nickname',
-                                                                    'profile_path')  # 필요한 필드를 선택하여 가져옵니다.
-                teenchin_add += list(target_members)
-            teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=-1).values('id', 'is_friend',
-                                                                                          'sender_id',
-                                                                                          'receiver_id',
-                                                                                          'sender__member_nickname',
-                                                                                          'receiver__member_nickname',
-                                                                                          'sender__memberprofile__profile_path')
-            # 각각의 틴친의 활동 가입수를 보여줍니다
-            for aactivity_count in teenchin:
-                sender_id = aactivity_count.get('sender_id')
-                manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                member_id=sender_id).values().count()
-                aactivity_count['aactivity_countss'] = manager_favorite_categories_add
-            # 각각의 틴친의 모임 가입수를 보여줍니다.
-            for club_count in teenchin:
-                sender_id = club_count.get('sender_id')
-                manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                            member_id=sender_id).values().count()
-                club_count['club_countss'] = manager_favorite_categories_add
-
-            # 검색을 한다면 그 검색내용을 걸러서 보여줍니다. (이메일, 이름 모두가능)
-            if search_text:
-                teenchin = []
-                teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=-1,
-                                                  sender__member_email__icontains=search_text).values('id', 'is_friend',
-                                                                                                      'sender_id',
-                                                                                                      'receiver_id',
-                                                                                                      'sender__member_nickname',
-                                                                                                      'receiver__member_nickname',
-                                                                                                      'sender__memberprofile__profile_path')
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    sender_id = aactivity_count.get('sender_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=sender_id).values().count()
-                    aactivity_count['aactivity_countss'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    sender_id = club_count.get('sender_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=sender_id).values().count()
-                    club_count['club_countss'] = manager_favorite_categories_add
-
-                teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=-1,
-                                                  sender__member_nickname__icontains=search_text).values('id',
-                                                                                                         'is_friend',
-                                                                                                         'sender_id',
-                                                                                                         'receiver_id',
-                                                                                                         'sender__member_nickname',
-                                                                                                         'receiver__member_nickname',
-                                                                                                         'sender__memberprofile__profile_path')
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    sender_id = aactivity_count.get('sender_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=sender_id).values().count()
-                    aactivity_count['aactivity_countss'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    sender_id = club_count.get('sender_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=sender_id).values().count()
-                    club_count['club_countss'] = manager_favorite_categories_add
-
-            response_data = {
-                'teenchin': teenchin[offset:limit],
-                'teenchin_add': teenchin_add[0:9]
-            }
-
-        else:
-            teenchin = []
-            unmatched_senders = []
-            teenchin_add = []
-            target_instance = member_id_target()
-            # # 메서드 호출
-            results = target_instance.member_id_target(member_id)
-
-            for sender_id in results:
-                # sender_id가 특정 member_id를 receiver_id로 가지고 있는지 확인합니다.
-                exists_condition1 = Friend.objects.filter(sender_id=sender_id, receiver_id=member_id).exists()
-                exists_condition2 = Friend.objects.filter(sender_id=member_id, receiver_id=sender_id).exists()
-
-                # 두 개의 조건 중 하나라도 충족되지 않으면, sender_id를 unmatched_senders에 추가합니다.
-                if not (exists_condition1 or exists_condition2):
-                    unmatched_senders.append(sender_id)
-
-            for i in unmatched_senders:
-                target_members = Member.objects.filter(id=i).values('id', 'member_nickname')  # 필요한 필드를 선택하여 가져옵니다.
-                teenchin_add += list(target_members)
-            teenchin += Friend.objects.filter(sender_id=member_id, is_friend=1).values('id', 'is_friend', 'sender_id',
-                                                                                       'receiver_id',
-                                                                                       'sender__member_nickname',
-                                                                                       'receiver__member_nickname',
-                                                                                       'receiver__memberprofile__profile_path', )
-            # 각각의 틴친의 활동 가입수를 보여줍니다
-            for aactivity_count in teenchin:
-                receiver_id = aactivity_count.get('receiver_id')
-                manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                aactivity_count['aactivity_count'] = manager_favorite_categories_add
-            # 각각의 틴친의 모임 가입수를 보여줍니다.
-            for club_count in teenchin:
-                receiver_id = club_count.get('receiver_id')
-                manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                            member_id=receiver_id).values().count()
-                club_count['club_count'] = manager_favorite_categories_add
-
-            teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=1).values('id', 'is_friend', 'sender_id',
-                                                                                         'receiver_id',
-                                                                                         'sender__member_nickname',
-                                                                                         'receiver__member_nickname',
-                                                                                         'sender__memberprofile__profile_path')
-            # 각각의 틴친의 활동 가입수를 보여줍니다
-            for aactivity_count in teenchin:
-                sender_id = aactivity_count.get('sender_id')
-                manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                member_id=sender_id).values().count()
-                aactivity_count['aactivity_countss'] = manager_favorite_categories_add
-            # 각각의 틴친의 모임 가입수를 보여줍니다.
-            for club_count in teenchin:
-                sender_id = club_count.get('sender_id')
-                manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                            member_id=sender_id).values().count()
-                club_count['club_countss'] = manager_favorite_categories_add
-
-            teenchin += Friend.objects.filter(sender_id=member_id, is_friend=-1).values('id', 'is_friend', 'sender_id',
-                                                                                        'receiver_id',
-                                                                                        'sender__member_nickname',
-                                                                                        'receiver__member_nickname',
-                                                                                        'receiver__memberprofile__profile_path')
-            # 각각의 틴친의 활동 가입수를 보여줍니다
-            for aactivity_count in teenchin:
-                receiver_id = aactivity_count.get('receiver_id')
-                manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                aactivity_count['aactivity_count'] = manager_favorite_categories_add
-            # 각각의 틴친의 모임 가입수를 보여줍니다.
-            for club_count in teenchin:
-                receiver_id = club_count.get('receiver_id')
-                manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                            member_id=receiver_id).values().count()
-                club_count['club_count'] = manager_favorite_categories_add
-
-            teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=-1).values('id', 'is_friend',
-                                                                                          'sender_id',
-                                                                                          'receiver_id',
-                                                                                          'sender__member_nickname',
-                                                                                          'receiver__member_nickname',
-                                                                                          'sender__memberprofile__profile_path')
-
-            # 각각의 틴친의 활동 가입수를 보여줍니다
-            for aactivity_count in teenchin:
-                sender_id = aactivity_count.get('sender_id')
-                manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                member_id=sender_id).values().count()
-                aactivity_count['aactivity_countss'] = manager_favorite_categories_add
-            # 각각의 틴친의 모임 가입수를 보여줍니다.
-            for club_count in teenchin:
-                sender_id = club_count.get('sender_id')
-                manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                            member_id=sender_id).values().count()
-                club_count['club_countss'] = manager_favorite_categories_add
-            # 검색을 한다면 그 검색내용을 걸러서 보여줍니다. (이메일, 이름 모두가능)
-            if search_text:
-                teenchin = []
-                teenchin += Friend.objects.filter(sender_id=member_id, is_friend=1,
-                                                  receiver__member_nickname__icontains=search_text).values('id',
-                                                                                                           'is_friend',
-                                                                                                           'sender_id',
-                                                                                                           'receiver_id',
-                                                                                                           'sender__member_nickname',
-                                                                                                           'receiver__member_nickname',
-                                                                                                           'receiver__memberprofile__profile_path', )
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    receiver_id = aactivity_count.get('receiver_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=receiver_id).values().count()
-                    aactivity_count['aactivity_count'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    receiver_id = club_count.get('receiver_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                    club_count['club_count'] = manager_favorite_categories_add
-
-                teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=1,
-                                                  sender__member_nickname__icontains=search_text).values('id',
-                                                                                                         'is_friend',
-                                                                                                         'sender_id',
-                                                                                                         'receiver_id',
-                                                                                                         'sender__member_nickname',
-                                                                                                         'receiver__member_nickname',
-                                                                                                         'sender__memberprofile__profile_path')
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    sender_id = aactivity_count.get('sender_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=sender_id).values().count()
-                    aactivity_count['aactivity_countss'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    sender_id = club_count.get('sender_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=sender_id).values().count()
-                    club_count['club_countss'] = manager_favorite_categories_add
-
-                teenchin += Friend.objects.filter(sender_id=member_id, is_friend=-1,
-                                                  receiver__member_nickname__icontains=search_text).values('id',
-                                                                                                           'is_friend',
-                                                                                                           'sender_id',
-                                                                                                           'receiver_id',
-                                                                                                           'sender__member_nickname',
-                                                                                                           'receiver__member_nickname',
-                                                                                                           'receiver__memberprofile__profile_path')
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    receiver_id = aactivity_count.get('receiver_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=receiver_id).values().count()
-                    aactivity_count['aactivity_count'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    receiver_id = club_count.get('receiver_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                    club_count['club_count'] = manager_favorite_categories_add
-
-                teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=-1,
-                                                  sender__member_nickname__icontains=search_text).values('id',
-                                                                                                         'is_friend',
-                                                                                                         'sender_id',
-                                                                                                         'receiver_id',
-                                                                                                         'sender__member_nickname',
-                                                                                                         'receiver__member_nickname',
-                                                                                                         'sender__memberprofile__profile_path')
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    sender_id = aactivity_count.get('sender_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=sender_id).values().count()
-                    aactivity_count['aactivity_countss'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    sender_id = club_count.get('sender_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=sender_id).values().count()
-                    club_count['club_countss'] = manager_favorite_categories_add
-
-                teenchin += Friend.objects.filter(sender_id=member_id, is_friend=1,
-                                                  receiver__member_email__icontains=search_text).values('id',
-                                                                                                        'is_friend',
-                                                                                                        'sender_id',
-                                                                                                        'receiver_id',
-                                                                                                        'sender__member_nickname',
-                                                                                                        'receiver__member_nickname',
-                                                                                                        'receiver__memberprofile__profile_path', )
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    receiver_id = aactivity_count.get('receiver_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=receiver_id).values().count()
-                    aactivity_count['aactivity_count'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    receiver_id = club_count.get('receiver_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                    club_count['club_count'] = manager_favorite_categories_add
-
-                teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=1,
-                                                  sender__member_email__icontains=search_text).values('id', 'is_friend',
-                                                                                                      'sender_id',
-                                                                                                      'receiver_id',
-                                                                                                      'sender__member_nickname',
-                                                                                                      'receiver__member_nickname',
-                                                                                                      'sender__memberprofile__profile_path')
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    sender_id = aactivity_count.get('sender_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=sender_id).values().count()
-                    aactivity_count['aactivity_countss'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    sender_id = club_count.get('sender_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=sender_id).values().count()
-                    club_count['club_countss'] = manager_favorite_categories_add
-
-                teenchin += Friend.objects.filter(sender_id=member_id, is_friend=-1,
-                                                  receiver__member_email__icontains=search_text).values('id',
-                                                                                                        'is_friend',
-                                                                                                        'sender_id',
-                                                                                                        'receiver_id',
-                                                                                                        'sender__member_nickname',
-                                                                                                        'receiver__member_nickname',
-                                                                                                        'receiver__memberprofile__profile_path')
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    receiver_id = aactivity_count.get('receiver_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=receiver_id).values().count()
-                    aactivity_count['aactivity_count'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    receiver_id = club_count.get('receiver_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=receiver_id).values().count()
-                    club_count['club_count'] = manager_favorite_categories_add
-
-                teenchin += Friend.objects.filter(receiver_id=member_id, is_friend=-1,
-                                                  sender__member_email__icontains=search_text).values('id', 'is_friend',
-                                                                                                      'sender_id',
-                                                                                                      'receiver_id',
-                                                                                                      'sender__member_nickname',
-                                                                                                      'receiver__member_nickname',
-                                                                                                      'sender__memberprofile__profile_path')
-                # 각각의 틴친의 활동 가입수를 보여줍니다
-                for aactivity_count in teenchin:
-                    sender_id = aactivity_count.get('sender_id')
-                    manager_favorite_categories_add = ActivityMember.objects.filter(status=1,
-                                                                                    member_id=sender_id).values().count()
-                    aactivity_count['aactivity_countss'] = manager_favorite_categories_add
-                # 각각의 틴친의 모임 가입수를 보여줍니다.
-                for club_count in teenchin:
-                    sender_id = club_count.get('sender_id')
-                    manager_favorite_categories_add = ClubMember.objects.filter(status=1,
-                                                                                member_id=sender_id).values().count()
-                    club_count['club_countss'] = manager_favorite_categories_add
-
-            response_data = {
-                'teenchin': teenchin[offset:limit],
-                'teenchin_add': teenchin_add[0:9]
-            }
 
         return Response(response_data)
+
+
+
 
 class MypageTeenchindeleteview(APIView):
     @transaction.atomic
