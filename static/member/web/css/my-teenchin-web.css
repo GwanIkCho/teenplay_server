@@ -954,3 +954,49 @@ textarea[name="send-content"]::-webkit-scrollbar {
     height: 1.1rem;
     margin-right: 0.25rem;
 }
+
+#loadingSpinner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0);
+  z-index: 9999;
+  opacity: .5;
+  transition: 0.5s ease;
+}
+
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0);
+  z-index: 9999;
+  opacity: .5;
+  transition: 0.5s ease;
+}
+
+#loadingSpinnera {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: none;
+}
+
+.maskaaa {
+    position: fixed; /* 화면에 고정 */
+    left: 50%;       /* 수평 가운데 */
+    top: 50%;        /* 수직 가운데 */
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    transform: translate(-50%, -50%); /* 정확한 가운데 위치 */
+}

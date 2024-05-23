@@ -6,8 +6,30 @@ const teenchinshowadd = document.querySelector(".teenchin-list-add")
 let page = 1
 const cansleButton = document.querySelector(".teenchin-more-btn")
 
+document.addEventListener('DOMContentLoaded', function() {
+    if (!window.spinnerShown) {
+        window.spinnerShown = true; // 플래그 설정하여 한 번만 실행되도록 함
+        showLoadingSpinner();
+
+        // 페이지 로드 후 특정 데이터를 비동기로 가져오고, 완료되면 스피너를 숨깁니다
+        teenchinService.getList(member_id, page, status_teenchin, search, add_showList).then((text) => {
+            teenchinshowadd.innerHTML += text;
+            hideLoadingSpinner();
+        })
+    }
+});
 
 
+
+function showLoadingSpinner() {
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    loadingSpinner.style.display = 'block';
+}
+
+function hideLoadingSpinner() {
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    loadingSpinner.style.display = 'none';
+}
 
 
 document.addEventListener("click", (e) => {
@@ -228,6 +250,7 @@ checkModalCheckBtn.addEventListener("click", () => {
 const add_showList = (teenchin) =>{
     let text = '';
         teenchin = teenchin.teenchin_add
+        showLoadingSpinner()
     if (teenchin.length === 0){
             text +=
             `<div class="signal-none">카테고리를 설정해주세요!.</div>`
@@ -273,18 +296,19 @@ const add_showList = (teenchin) =>{
 
         })
     }return text;
+
 }
 
 const showList = (teenchin) =>{
     let text = '';
     teenchin = teenchin.teenchin
+    console.log(teenchin)
 
     if (teenchin.length ===0){
             text +=
             `<div class="signal-none">아직 새로운 틴친신청이 없습니다.</div>`
         }
     else{
-
         teenchin.forEach((teenchin)=>{
             if (teenchin.is_friend === 1 && teenchin.receiver_id === parseInt(member_id) && teenchin.sender__memberprofile__profile_path ===null ){
             text += `
@@ -303,12 +327,12 @@ const showList = (teenchin) =>{
                             <div class="profile-info-item">
                                 <div style="margin-right: 10px">
                                     <span>활동</span>
-                                    <span>${teenchin.aactivity_countss}</span>
+                                    <span>${teenchin.activity_count}</span>
                                 </div>
                                 <span>|</span>
                                 <div style="margin-left: 10px">
                                     <span>모임</span>
-                                    <span>${teenchin.club_countss}</span>
+                                    <span>${teenchin.club_count}</span>
                                 </div>
                             </div>
                         </div>
@@ -349,12 +373,12 @@ const showList = (teenchin) =>{
                             <div class="profile-info-item">
                                 <div style="margin-right: 10px">
                                     <span>활동</span>
-                                    <span>${teenchin.aactivity_countss}</span>
+                                    <span>${teenchin.activity_count}</span>
                                 </div>
                                 <span>|</span>
                                 <div style="margin-left: 10px">
                                     <span>모임</span>
-                                    <span>${teenchin.club_countss}</span>
+                                    <span>${teenchin.club_count}</span>
                                 </div>
                             </div>
                         </div>
@@ -395,7 +419,7 @@ const showList = (teenchin) =>{
                             <div class="profile-info-item">
                                 <div style="margin-right: 10px">
                                     <span>활동</span>
-                                    <span>${teenchin.aactivity_count}</span>
+                                    <span>${teenchin.activity_count}</span>
                                 </div>
                                 <span>|</span>
                                 <div style="margin-left: 10px">
@@ -441,7 +465,7 @@ const showList = (teenchin) =>{
                             <div class="profile-info-item">
                                 <div style="margin-right: 10px">
                                     <span>활동</span>
-                                    <span>${teenchin.aactivity_count}</span>
+                                    <span>${teenchin.activity_count}</span>
                                 </div>
                                 <span>|</span>
                                 <div style="margin-left: 10px">
@@ -487,12 +511,12 @@ const showList = (teenchin) =>{
                                 <div class="profile-info-item">
                                     <div style="margin-right: 10px">
                                         <span>활동</span>
-                                        <span>${teenchin.aactivity_countss}</span>
+                                        <span>${teenchin.activity_count}</span>
                                     </div>
                                     <span>|</span>
                                     <div style="margin-left: 10px">
                                         <span>모임</span>
-                                        <span>${teenchin.club_countss}</span>
+                                        <span>${teenchin.club_count}</span>
                                     </div>
                                 </div>
                             </div>
@@ -535,12 +559,12 @@ const showList = (teenchin) =>{
                                 <div class="profile-info-item">
                                     <div style="margin-right: 10px">
                                         <span>활동</span>
-                                        <span>${teenchin.aactivity_countss}</span>
+                                        <span>${teenchin.activity_count}</span>
                                     </div>
                                     <span>|</span>
                                     <div style="margin-left: 10px">
                                         <span>모임</span>
-                                        <span>${teenchin.club_countss}</span>
+                                        <span>${teenchin.club_count}</span>
                                     </div>
                                 </div>
                             </div>
@@ -583,7 +607,7 @@ const showList = (teenchin) =>{
                                 <div class="profile-info-item">
                                     <div style="margin-right: 10px">
                                         <span>활동</span>
-                                        <span>${teenchin.aactivity_count}</span>
+                                        <span>${teenchin.activity_count}</span>
                                     </div>
                                     <span>|</span>
                                     <div style="margin-left: 10px">
@@ -631,7 +655,7 @@ const showList = (teenchin) =>{
                                 <div class="profile-info-item">
                                     <div style="margin-right: 10px">
                                         <span>활동</span>
-                                        <span>${teenchin.aactivity_count}</span>
+                                        <span>${teenchin.activity_count}</span>
                                     </div>
                                     <span>|</span>
                                     <div style="margin-left: 10px">
@@ -813,9 +837,7 @@ teenchinService.getList(member_id, page,status_teenchin,search, showList).then((
 
 teenchinService.getList(member_id, page,status_teenchin,search,showList);
 
-teenchinService.getList(member_id, page,status_teenchin,search, add_showList).then((text) => {
-    teenchinshowadd.innerHTML += text;
-});
+
 
 
 teenchinService.getList(member_id, page,status_teenchin,search,add_showList);
