@@ -493,11 +493,15 @@ class MemberAlarmCountAPI(APIView):
 class MypageTeenchinAPIview(APIView):
     def get_unmatched_senders(self, member_id):
         results = member_id_target().member_id_target(member_id)
-        friends_filter = Q(sender_id__in=results, receiver_id=member_id) | Q(sender_id=member_id,
-                                                                             receiver_id__in=results)
-        friends = Friend.objects.filter(friends_filter).values_list('sender_id', 'receiver_id')
-        friend_ids = set(friend['sender_id'] for friend in friends).union(
-            set(friend['receiver_id'] for friend in friends))
+        friends = Friend.objects.filter(
+            Q(sender_id__in=results, receiver_id=member_id) |
+            Q(sender_id=member_id, receiver_id__in=results)
+        ).values_list('sender_id', 'receiver_id')
+
+        friend_ids = {sender_id for sender_id, _ in friends}.union(
+            {receiver_id for _, receiver_id in friends}
+        )
+
         unmatched_senders = [sender_id for sender_id in results if sender_id not in friend_ids]
         return unmatched_senders
 
@@ -505,34 +509,41 @@ class MypageTeenchinAPIview(APIView):
         return list(Member.objects.filter(id__in=unmatched_senders).values('id', 'member_nickname'))
 
     def get_teenchin(self, member_id, is_friend, search_text=''):
-        filters = (Q(sender_id=member_id) | Q(receiver_id=member_id)) & Q(is_friend=is_friend)
+        filters = Q(sender_id=member_id) | Q(receiver_id=member_id)
+        filters &= Q(is_friend=is_friend)
+
         if search_text:
             search_filter = Q(receiver__member_nickname__icontains=search_text) | Q(
-                receiver__member_email__icontains=search_text) | Q(sender__member_email__icontains=search_text) | Q(
+                receiver__member_email__icontains=search_text) | Q(
+                sender__member_email__icontains=search_text) | Q(
                 sender__member_nickname__icontains=search_text)
             filters &= search_filter
 
-        teenchin = list(Friend.objects.filter(filters).values(
+        teenchin = Friend.objects.filter(filters).select_related(
+            'sender', 'receiver', 'sender__memberprofile', 'receiver__memberprofile'
+        ).values(
             'id', 'is_friend', 'sender_id', 'receiver_id',
             'sender__member_nickname', 'receiver__member_nickname',
             'sender__memberprofile__profile_path', 'receiver__memberprofile__profile_path'
-        ))
+        )
 
-        receiver_ids = [item['receiver_id'] if item['receiver_id'] != member_id else item['sender_id'] for item in
-                        teenchin]
-        activity_counts = {m['member_id']: m['count'] for m in
-                           ActivityMember.objects.filter(status=1, member_id__in=receiver_ids).values(
-                               'member_id').annotate(count=Count('id'))}
-        club_counts = {m['member_id']: m['count'] for m in
-                       ClubMember.objects.filter(status=1, member_id__in=receiver_ids).values('member_id').annotate(
-                           count=Count('id'))}
+        receiver_ids = {item['receiver_id'] if item['receiver_id'] != member_id else item['sender_id'] for item in
+                        teenchin}
+
+        activity_counts = ActivityMember.objects.filter(status=1, member_id__in=receiver_ids).values(
+            'member_id').annotate(count=Count('id'))
+        club_counts = ClubMember.objects.filter(status=1, member_id__in=receiver_ids).values('member_id').annotate(
+            count=Count('id'))
+
+        activity_counts_dict = {m['member_id']: m['count'] for m in activity_counts}
+        club_counts_dict = {m['member_id']: m['count'] for m in club_counts}
 
         for item in teenchin:
             receiver_id = item['receiver_id'] if item['receiver_id'] != member_id else item['sender_id']
-            item['aactivity_count'] = activity_counts.get(receiver_id, 0)
-            item['club_count'] = club_counts.get(receiver_id, 0)
+            item['activity_count'] = activity_counts_dict.get(receiver_id, 0)
+            item['club_count'] = club_counts_dict.get(receiver_id, 0)
 
-        return teenchin
+        return list(teenchin)
 
     def get(self, request, member_id, page):
         member_id = request.session.get('member').get('id')

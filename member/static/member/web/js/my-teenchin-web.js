@@ -327,7 +327,7 @@ const showList = (teenchin) =>{
                             <div class="profile-info-item">
                                 <div style="margin-right: 10px">
                                     <span>활동</span>
-                                    <span>${teenchin.aactivity_count}</span>
+                                    <span>${teenchin.activity_count}</span>
                                 </div>
                                 <span>|</span>
                                 <div style="margin-left: 10px">
@@ -373,7 +373,7 @@ const showList = (teenchin) =>{
                             <div class="profile-info-item">
                                 <div style="margin-right: 10px">
                                     <span>활동</span>
-                                    <span>${teenchin.aactivity_count}</span>
+                                    <span>${teenchin.activity_count}</span>
                                 </div>
                                 <span>|</span>
                                 <div style="margin-left: 10px">
@@ -419,7 +419,7 @@ const showList = (teenchin) =>{
                             <div class="profile-info-item">
                                 <div style="margin-right: 10px">
                                     <span>활동</span>
-                                    <span>${teenchin.aactivity_count}</span>
+                                    <span>${teenchin.activity_count}</span>
                                 </div>
                                 <span>|</span>
                                 <div style="margin-left: 10px">
@@ -465,7 +465,7 @@ const showList = (teenchin) =>{
                             <div class="profile-info-item">
                                 <div style="margin-right: 10px">
                                     <span>활동</span>
-                                    <span>${teenchin.aactivity_count}</span>
+                                    <span>${teenchin.activity_count}</span>
                                 </div>
                                 <span>|</span>
                                 <div style="margin-left: 10px">
@@ -511,7 +511,7 @@ const showList = (teenchin) =>{
                                 <div class="profile-info-item">
                                     <div style="margin-right: 10px">
                                         <span>활동</span>
-                                        <span>${teenchin.aactivity_count}</span>
+                                        <span>${teenchin.activity_count}</span>
                                     </div>
                                     <span>|</span>
                                     <div style="margin-left: 10px">
@@ -559,7 +559,7 @@ const showList = (teenchin) =>{
                                 <div class="profile-info-item">
                                     <div style="margin-right: 10px">
                                         <span>활동</span>
-                                        <span>${teenchin.aactivity_count}</span>
+                                        <span>${teenchin.activity_count}</span>
                                     </div>
                                     <span>|</span>
                                     <div style="margin-left: 10px">
@@ -607,7 +607,7 @@ const showList = (teenchin) =>{
                                 <div class="profile-info-item">
                                     <div style="margin-right: 10px">
                                         <span>활동</span>
-                                        <span>${teenchin.aactivity_count}</span>
+                                        <span>${teenchin.activity_count}</span>
                                     </div>
                                     <span>|</span>
                                     <div style="margin-left: 10px">
@@ -655,7 +655,7 @@ const showList = (teenchin) =>{
                                 <div class="profile-info-item">
                                     <div style="margin-right: 10px">
                                         <span>활동</span>
-                                        <span>${teenchin.aactivity_count}</span>
+                                        <span>${teenchin.activity_count}</span>
                                     </div>
                                     <span>|</span>
                                     <div style="margin-left: 10px">
