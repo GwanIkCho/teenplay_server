@@ -102,7 +102,10 @@ def get_member_wishlist_data():
 
 </details>
 
--   먼저 **cosine similarity**란
+-   먼저 **CountVectorizer**란
+    텍스트 문서에서 단어의 빈도를 세어줍니다. 등장하는 단어들을 세어서 백터(숫자 배열)로 만들어주어 문장의 단어가 몇 번 등장했는지 나타냅니다.
+
+-   **cosine similarity**란
 
 <img src='./image/img8.png' width='800px' height='400px'>
 
